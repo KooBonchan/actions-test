@@ -2,6 +2,10 @@ FROM gradle:jdk17 as builder
 WORKDIR /build
 
 RUN gradle build -x test --parallel --continue > /dev/null 2>&1 || true
+# risky:
+# skip all test
+# continue build if some task fails
+# no stop on build failure
 
 
 FROM amazoncorretto:17
