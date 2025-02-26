@@ -1,0 +1,55 @@
+name: Build and Deploy to GCP
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-actions@v3
+
+    - name: Cache Docker layers
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{runner.os}}-buildx-${{github.sha}}
+        restore-keys: |
+          #{{ runner.os }}-buildx
+
+    - name: Set up GCP credentials
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{secrets.GCP_SA_KEY}}
+
+    - name: Configure Docker for Artifact Registry
+      run: |
+        IMAGE_NAME=us-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/action-test
+        docker build -t $IMAGE_NAME
+        docker push $IMAGE_NAME
+
+  deploy:
+    name: Deploy to Google Cloud
+    runs-on: ubuntu-latest
+    needs: build
+  
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up GCP credentials
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Deploy to Google Kubernetes Engine (GKE)
+      run: |
+        gcloud container clusters get-credentials your-cluster-name --region your-region --project ${{ secrets.GCP_PROJECT_ID }}
