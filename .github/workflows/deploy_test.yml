@@ -17,11 +17,11 @@ jobs:
     - name: Deploy to GCP VM
       env:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        VM_IP: 34.47.36.146
-        VM_USERNMAE: garam9koo
+        VM_IP: ${{ secrets.GCP_VM_IP }}
+        VM_USERNMAE: ${{ secrets.GCP_VM_USERNAME }}
       run: |
         mkdir -p ~/.ssh
         echo "$GCP_SSH_KEY" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H $VM_IP >> ~/.ssh/known_hosts
-        ssh ${VM_USERNAME}@${VM_IP} "echo 'SSH works!'"
+        ssh "${VM_USERNAME}@${VM_IP}" "echo 'SSH works!'"
