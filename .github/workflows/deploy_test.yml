@@ -1,0 +1,41 @@
+name: Blue-Green Deployment
+
+on:
+  push:
+    branches:
+      - test
+
+jobs:
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-actions@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and Push Docker Image
+      run: |
+        docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/toy:latest .
+        docker push ${{ secrets.DOCKERHUB_USERNAME }}/toy:latest
+
+    - name: Deploy to GCP VM
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        VM_IP: 34.47.36.146
+        VM_USERNMAE: garam9koo
+      run: |
+        mkdir -p ~/.ssh
+        echo "$GCP_SSH_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H $VM_IP >> ~/.ssh/known_hosts
+        ssh $VM_USERNAME@VM_IP "echo 'SSH works!'"
