@@ -24,4 +24,4 @@ jobs:
         echo "$GCP_SSH_KEY" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H $VM_IP >> ~/.ssh/known_hosts
-        ssh $VM_USERNAME@$VM_IP "echo 'SSH works!'"
+        ssh ${VM_USERNAME}@${VM_IP} "echo 'SSH works!'"
