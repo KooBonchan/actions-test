@@ -36,32 +36,44 @@ jobs:
           echo "$GCP_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H $VM_IP >> ~/.ssh/known_hosts
-          ssh "$VM_USERNAME@$VM_IP" << 'EOF'
+          ssh -o "StrictHostKeyChecking=no" "$VM_USERNAME@$VM_IP" << 'EOF'
+            set -e
+            echo "Starting deployment..."
           
             docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/toy:latest
 
-            # Check current active container from nginx.conf
-            ACTIVE=$(docker exec nginxcontainer cat /etc/nginx/conf.d/default.conf | grep proxy_pass | grep -o "blue\|green")
+            ACTIVE=$(cat ~/active_container 2>/dev/null || echo "blue")
             if [ "$ACTIVE" = "green" ]; then
               NEW_CONTAINER="blue"
             else
               NEW_CONTAINER="green"
             fi
 
-            # Stop and remove idle container
-            docker stop $NEW_CONTAINER || true
-            docker rm $NEW_CONTAINER || true
 
-            # Run new container
+            docker rm -f "$NEW_CONTAINER" || true
             docker run -d --name $NEW_CONTAINER --network toy-network ${{ secrets.DOCKERHUB_USERNAME }}/toy:latest
 
-            # Update nginx.conf
-            echo "server { listen 80; server_name actions-test; location / { proxy_pass http://$NEW_CONTAINER:8094; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; } }" > ~/nginx.conf
+            # Update nginx default config directly in container
+            docker exec nginxcontainer bash -c "cat > /etc/nginx/conf.d/default.conf" << 'NGINX'
+            server {
+              listen 80;
+              server_name actions-test;
+              location / {
+                proxy_pass http://$NEW_CONTAINER:8094;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+              }
+            }
+            NGINX
 
-            # Copy updated config to nginx container
-            docker cp ~/nginx.conf nginxcontainer:/etc/nginx/conf.d/default.conf
+            # Test and reload nginx
+            docker exec nginxcontainer nginx -t
+            if ! docker exec nginxcontainer nginx -s reload; then
+              echo "Nginx reload failed!"
+              exit 1
+            fi
 
-            # Reload nginx
-            docker exec nginxcontainer nginx -s reload
+            echo "$NEW_CONTAINER" > ~/active_container
+            echo "Deployment completed successfully"
           EOF
