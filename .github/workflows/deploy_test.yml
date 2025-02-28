@@ -24,6 +24,6 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H $VM_IP >> ~/.ssh/known_hosts
-          ssh "$VM_USERNAME@$VM_IP" << 'EOF'
+          ssh $VM_USERNAME@$VM_IP << 'EOF'
             echo 'test'
           EOF
